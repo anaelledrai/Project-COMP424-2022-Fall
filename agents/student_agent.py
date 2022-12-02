@@ -63,9 +63,15 @@ class StudentAgent(Agent):
             if not chessboard[my_x, my_y, 0] and not chessboard[my_x, my_y, 1] and not chessboard[my_x, my_y, 2] and not chessboard[my_x, my_y, 3]:
                 return False
             else:
-                dir = randint(0, 3)
-                while chessboard[my_x, my_y, dir]:
+                if obj_x <= my_x and not chessboard[my_x, my_y, 2]:
+                    dir = self.dir_map["d"]
+                elif obj_x > my_x and not chessboard[my_x, my_y, 0]:
+                    dir = self.dir_map["u"]
+                else: 
                     dir = randint(0, 3)
+                    while chessboard[my_x, my_y, dir]:
+                        dir = randint(0, 3)
+                        
                 return (my_x, my_y), dir
         else:
             distances = {}
