@@ -42,27 +42,47 @@ class StudentAgent(Agent):
         my_x, my_y = my_pos
 
         # Perform a check to determine if the 2 agents are in the same row or column
-        if not adv_x == 0 and not chess_board[adv_x - 1, adv_y, self.dir_map["d"]]:
+        if not adv_x == 0 and not chess_board[adv_x - 1, adv_y, self.dir_map["d"]] and not self.block_check(adv_x - 1, adv_y, chess_board) and not self.win_check(chess_board, (adv_x - 1, adv_y), (adv_x, adv_y), self.dir_map["d"]):
             if self.reachable(my_x, my_y, adv_x - 1, adv_y, max_step, 0, chess_board):
                 return (adv_x - 1, adv_y), self.dir_map["d"]
-        elif not adv_x == len(chess_board) - 1 and not chess_board[adv_x + 1, adv_y, self.dir_map["u"]]:
+        elif not adv_x == len(chess_board) - 1 and not chess_board[adv_x + 1, adv_y, self.dir_map["u"]] and not self.block_check(adv_x + 1, adv_y, chess_board) and not self.win_check(chess_board, (adv_x + 1, adv_y), (adv_x, adv_y), self.dir_map["u"]):
             if self.reachable(my_x, my_y, adv_x + 1, adv_y, max_step, 0, chess_board):
                 return (adv_x + 1, adv_y), self.dir_map["u"]
-        elif not adv_y == 0 and not chess_board[adv_x, adv_y - 1, self.dir_map["r"]]:
+        elif not adv_y == 0 and not chess_board[adv_x, adv_y - 1, self.dir_map["r"]] and not self.block_check(adv_x, adv_y - 1, chess_board) and not self.win_check(chess_board, (adv_x, adv_y - 1), (adv_x, adv_y), self.dir_map["r"]):
             if self.reachable(my_x, my_y, adv_x, adv_y - 1, max_step, 0, chess_board):   
                 return (adv_x, adv_y - 1), self.dir_map["r"]
-        elif not adv_y == len(chess_board) - 1 and not chess_board[adv_x, adv_y + 1, self.dir_map["l"]]:
+        elif not adv_y == len(chess_board) - 1 and not chess_board[adv_x, adv_y + 1, self.dir_map["l"]] and not self.block_check(adv_x, adv_y + 1, chess_board) and not self.win_check(chess_board, (adv_x, adv_y + 1), (adv_x, adv_y),  self.dir_map["l"]):
             if self.reachable(my_x, my_y, adv_x, adv_y + 1, max_step, 0, chess_board):
                 return (adv_x, adv_y + 1), self.dir_map["l"]
     
         return self.find_closest(my_x, my_y, adv_x, adv_y, max_step, 0, chess_board)
-        # TODO: HANDLE OTHER CASES
+
+    def block_check(self, my_x, my_y, chess_board):
+        count = 0
+        for i in range(4):
+            if chess_board[my_x, my_y, i]:
+                count += 1
+        return count >= 2
+
+    def win_check(self, chess_board, my_pos, adv_pos, dir):
+        potential_chess_board = chess_board[:]
+        potential_chess_board[my_pos[0], my_pos[1], dir] = True
+        end, agent, adv =  self.check_endgame(potential_chess_board, my_pos, adv_pos)
+        return end and adv >= agent
+           
 
     def find_closest(self, my_x, my_y, obj_x, obj_y, max_step, curr_step, chessboard):
         if max_step == curr_step:
-            if not chessboard[my_x, my_y, 0] and not chessboard[my_x, my_y, 1] and not chessboard[my_x, my_y, 2] and not chessboard[my_x, my_y, 3]:
+            if chessboard[my_x, my_y, 0] and chessboard[my_x, my_y, 1] and chessboard[my_x, my_y, 2] and chessboard[my_x, my_y, 3]:
                 return False
             else:
+                count = 0
+                for i in range(4):
+                    if chessboard[my_x, my_y, i]:
+                        count += 1
+                if count >= 2:
+                    return False 
+
                 if obj_x <= my_x and not chessboard[my_x, my_y, 2]:
                     dir = self.dir_map["d"]
                 elif obj_x > my_x and not chessboard[my_x, my_y, 0]:
@@ -118,38 +138,54 @@ class StudentAgent(Agent):
                     return True
 
             return False 
-            
-            
-    def random_step(self, chess_board, my_pos, adv_pos, max_step):
-        ori_pos = my_pos[:]
-        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
-        steps = randint(0, max_step + 1)
 
-        # Random Walk
-        for _ in range(steps):
-            r, c = my_pos
-            dir = randint(0, 3)
-            m_r, m_c = moves[dir]
-            my_pos = (r + m_r, c + m_c)
+    def check_endgame(self, chess_board, my_pos, adv_pos):
+        """
+        Check if the game ends and compute the current score of the agents.
 
-            # Special Case enclosed by Adversary
-            k = 0
-            while chess_board[r, c, dir] or my_pos == adv_pos:
-                k += 1
-                if k > 300:
-                    break
-                dir = randint(0, 3)
-                m_r, m_c = moves[dir]
-                my_pos = (r + m_r, c + m_c)
+        Returns
+        -------
+        is_endgame : bool
+            Whether the game ends.
+        player_1_score : int
+            The score of player 1.
+        player_2_score : int
+            The score of player 2.
+        """
+        # Union-Find
+        father = dict()
+        for r in range(len(chess_board)):
+            for c in range(len(chess_board)):
+                father[(r, c)] = (r, c)
 
-            if k > 300:
-                my_pos = ori_pos
-                break
+        def find(pos):
+            if father[pos] != pos:
+                father[pos] = find(father[pos])
+            return father[pos]
 
-        # Put Barrier
-        dir = randint(0, 3)
-        r, c = my_pos
-        while chess_board[r, c, dir]:
-            dir = randint(0, 3)
+        def union(pos1, pos2):
+            father[pos1] = pos2
 
-        return my_pos, dir
+        for r in range(len(chess_board)):
+            for c in range(len(chess_board)):
+                for dir, move in enumerate(
+                    ((0, 1), (1, 0))
+                ):  # Only check down and right
+                    if chess_board[r, c, dir + 1]:
+                        continue
+                    pos_a = find((r, c))
+                    pos_b = find((r + move[0], c + move[1]))
+                    if pos_a != pos_b:
+                        union(pos_a, pos_b)
+
+        for r in range(len(chess_board)):
+            for c in range(len(chess_board)):
+                find((r, c))
+        p0_r = find(my_pos)
+        p1_r = find(adv_pos)
+        p0_score = list(father.values()).count(p0_r)
+        p1_score = list(father.values()).count(p1_r)
+        if p0_r == p1_r:
+            return False, p0_score, p1_score
+
+        return True, p0_score, p1_score
