@@ -43,19 +43,23 @@ class StudentAgent(Agent):
 
         # Perform a check to determine if the 2 agents are in the same row or column
         if not adv_x == 0 and not chess_board[adv_x - 1, adv_y, self.dir_map["d"]] and not self.block_check(adv_x - 1, adv_y, chess_board) and not self.win_check(chess_board, (adv_x - 1, adv_y), (adv_x, adv_y), self.dir_map["d"]):
-            if self.reachable(my_x, my_y, adv_x - 1, adv_y, max_step, 0, chess_board):
+            if self.reachable(my_x, my_y, adv_x - 1, adv_y, adv_pos, max_step, 0, chess_board):
                 return (adv_x - 1, adv_y), self.dir_map["d"]
         elif not adv_x == len(chess_board) - 1 and not chess_board[adv_x + 1, adv_y, self.dir_map["u"]] and not self.block_check(adv_x + 1, adv_y, chess_board) and not self.win_check(chess_board, (adv_x + 1, adv_y), (adv_x, adv_y), self.dir_map["u"]):
-            if self.reachable(my_x, my_y, adv_x + 1, adv_y, max_step, 0, chess_board):
+            if self.reachable(my_x, my_y, adv_x + 1, adv_y, adv_pos, max_step, 0, chess_board):
                 return (adv_x + 1, adv_y), self.dir_map["u"]
         elif not adv_y == 0 and not chess_board[adv_x, adv_y - 1, self.dir_map["r"]] and not self.block_check(adv_x, adv_y - 1, chess_board) and not self.win_check(chess_board, (adv_x, adv_y - 1), (adv_x, adv_y), self.dir_map["r"]):
-            if self.reachable(my_x, my_y, adv_x, adv_y - 1, max_step, 0, chess_board):   
+            if self.reachable(my_x, my_y, adv_x, adv_y - 1, adv_pos, max_step, 0, chess_board):   
                 return (adv_x, adv_y - 1), self.dir_map["r"]
-        elif not adv_y == len(chess_board) - 1 and not chess_board[adv_x, adv_y + 1, self.dir_map["l"]] and not self.block_check(adv_x, adv_y + 1, chess_board) and not self.win_check(chess_board, (adv_x, adv_y + 1), (adv_x, adv_y),  self.dir_map["l"]):
-            if self.reachable(my_x, my_y, adv_x, adv_y + 1, max_step, 0, chess_board):
+        elif not adv_y == len(chess_board) - 1 and not chess_board[adv_x, adv_y + 1, self.dir_map["l"]] and not self.block_check(adv_x, adv_y + 1, chess_board) and not self.win_check(chess_board, (adv_x, adv_y + 1), (adv_x, adv_y), self.dir_map["l"]):
+            if self.reachable(my_x, my_y, adv_x, adv_y + 1, adv_pos, max_step, 0, chess_board):
                 return (adv_x, adv_y + 1), self.dir_map["l"]
     
-        return self.find_closest(my_x, my_y, adv_x, adv_y, max_step, 0, chess_board)
+        val = self.find_closest(my_x, my_y, adv_x, adv_y, max_step, 0, chess_board)
+        if val:
+            return val
+        else:
+            return self.random_step(chess_board, my_pos, adv_pos, max_step)
 
     def block_check(self, my_x, my_y, chess_board):
         count = 0
@@ -69,7 +73,6 @@ class StudentAgent(Agent):
         potential_chess_board[my_pos[0], my_pos[1], dir] = True
         end, agent, adv =  self.check_endgame(potential_chess_board, my_pos, adv_pos)
         return end and adv >= agent
-           
 
     def find_closest(self, my_x, my_y, obj_x, obj_y, max_step, curr_step, chessboard):
         if max_step == curr_step:
@@ -107,6 +110,9 @@ class StudentAgent(Agent):
             positions = sorted(distances.items(), key=lambda kv: kv[1])
             for pos in positions:
                 x, y = pos[0]
+
+                if pos[0] == (obj_x, obj_y): 
+                    continue
                 val = self.find_closest(x, y, obj_x, obj_y, max_step, curr_step + 1, chessboard)
                 if val:
                     return val
@@ -114,7 +120,7 @@ class StudentAgent(Agent):
             return False
 
 
-    def reachable(self, my_x, my_y, obj_x, obj_y, max_step, curr_step, chessboard):
+    def reachable(self, my_x, my_y, obj_x, obj_y, adv_pos, max_step, curr_step, chessboard):
         if my_x == obj_x and my_y == obj_y:
             return True
         elif max_step == curr_step:
@@ -134,7 +140,9 @@ class StudentAgent(Agent):
             
             for pos in positions:
                 x, y = pos[0]
-                if self.reachable(x, y, obj_x, obj_y, max_step, curr_step + 1, chessboard):
+                if pos[0] == adv_pos: 
+                    continue
+                if self.reachable(x, y, obj_x, obj_y, adv_pos, max_step, curr_step + 1, chessboard):
                     return True
 
             return False 
@@ -189,3 +197,40 @@ class StudentAgent(Agent):
             return False, p0_score, p1_score
 
         return True, p0_score, p1_score
+
+
+    
+            
+    def random_step(self, chess_board, my_pos, adv_pos, max_step):
+        ori_pos = my_pos[:]
+        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+        steps = randint(0, max_step + 1)
+
+        # Random Walk
+        for _ in range(steps):
+            r, c = my_pos
+            dir = randint(0, 3)
+            m_r, m_c = moves[dir]
+            my_pos = (r + m_r, c + m_c)
+
+            # Special Case enclosed by Adversary
+            k = 0
+            while chess_board[r, c, dir] or my_pos == adv_pos or self.win_check(chess_board, my_pos, adv_pos, dir):
+                k += 1
+                if k > 300:
+                    break
+                dir = randint(0, 3)
+                m_r, m_c = moves[dir]
+                my_pos = (r + m_r, c + m_c)
+
+            if k > 300:
+                my_pos = ori_pos
+                break
+
+        # Put Barrier
+        dir = randint(0, 3)
+        r, c = my_pos
+        while chess_board[r, c, dir]:
+            dir = randint(0, 3)
+
+        return my_pos, dir
